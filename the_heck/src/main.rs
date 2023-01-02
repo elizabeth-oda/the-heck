@@ -2,6 +2,8 @@ use std::env;
 use std::process;
 use the_heck::UserInput;
 mod shell_history;
+mod rules;
+
 
 fn main() {
     // Temporary arguments for testing
@@ -13,8 +15,14 @@ fn main() {
 
     // Get the last shell command
     let hist_path = shell_history::get_history_file_path();
-    let last_line = shell_history::read_last_line_history_file(&hist_path);
-    println!("{:?}", last_line);
+    let last_command = shell_history::read_last_line_history_file(&hist_path);
+    println!("Last command: {:?}", last_command);
+
+    // let check_command = rules::match_command(last_command);
+    let string_to_test = "sl".to_string();
+    let check_command = rules::match_command(string_to_test);
+    println!("Fixed command: {:?}", check_command);
+
     // Check whether arg is in known args
     // Fix command
     // Return fix to shell

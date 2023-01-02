@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::fs::File;
-use std::io::Read;
 use std::io::BufRead;
 use home;
 use rev_buf_reader::RevBufReader;
