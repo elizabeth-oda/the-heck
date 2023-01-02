@@ -1,5 +1,3 @@
-use std::error::Error;
-
 pub struct UserInput {
     pub wrong_command: String,
     pub options: String,
@@ -21,8 +19,8 @@ pub fn fix_command() {
     // Fixes the previous command when 'theheck' is called.
 }
 
-pub fn get_raw_command () {
-    // Gets the raw command from the command line.
+pub fn get_command_from_shell_history () {
+    // Gets the raw command from the shell history
 }
 
 pub fn check_known_args () {
