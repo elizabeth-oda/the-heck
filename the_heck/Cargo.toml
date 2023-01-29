@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 home = "0.5.4"
 rev_buf_reader = "0.3.0"
+clap = {version = "4.1.4", features = ["derive"]}
+fst = "0.1"
