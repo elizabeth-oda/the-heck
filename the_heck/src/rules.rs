@@ -13,3 +13,12 @@ pub fn fix_ls(last_command: String) -> String {
 
     correct_command.to_string()
 }
+
+// warning: value assigned to `correct_command` is never read
+//  --> src/rules.rs:7:13
+//  |
+// 7 |     let mut correct_command: &str = "Empty";
+//  |             ^^^^^^^^^^^^^^^
+//  |
+//  = help: maybe it is overwritten before being read?
+//  = note: `#[warn(unused_assignments)]` on by default
