@@ -1,24 +1,14 @@
-pub fn fix_git() {
-    println!("Hello from Fix Git!")
-}
-
-pub fn fix_ls(last_command: String) -> String {
-    println!("Command to fix: {}", last_command);
-    let mut correct_command: &str = "Empty";
-    if last_command == "sl" {
-        correct_command = "ls";
-    } else {
-        correct_command = "Unknown string.";
-    }
-
+pub fn fix_git() -> String {
+    let correct_command = "git";
     correct_command.to_string()
 }
 
-// warning: value assigned to `correct_command` is never read
-//  --> src/rules.rs:7:13
-//  |
-// 7 |     let mut correct_command: &str = "Empty";
-//  |             ^^^^^^^^^^^^^^^
-//  |
-//  = help: maybe it is overwritten before being read?
-//  = note: `#[warn(unused_assignments)]` on by default
+pub fn fix_ls() -> String {
+    let correct_command = "ls";
+    correct_command.to_string()
+}
+
+pub fn fix_cargo() -> String {
+    let correct_command = "Hi, Cargo";
+    correct_command.to_string()
+}

@@ -13,14 +13,16 @@ pub fn get_history_file_path() -> PathBuf {
     hist_file_path
 }
 
-pub fn read_last_line_history_file(hist_file_path: PathBuf) -> Vec<String> {
+pub fn read_last_line_history_file(hist_file_path: PathBuf) -> String {
     let file = File::open(hist_file_path).expect("Could not open file.");
     let buf = RevBufReader::new(file);
     // Takes the last 128 bytes of the file
     let last_lines_in_file: Vec<String> = buf.lines().take(128).map(|l| l.expect("Could not parse line.")).collect();
     println!("Last line in file: {}", last_lines_in_file[1]);
     // Splits the last line at the semicolon which separates the command from the timestamp
-    let last_command: Vec<String> = last_lines_in_file[0].split(";").map(|borrow| borrow.to_owned()).collect();
+    let last_line: Vec<String> = last_lines_in_file[0].split(";").map(|borrow| borrow.to_owned()).collect();
+    let time_stamp = &last_line[0];
+    let last_command = last_line[1].to_string().to_owned();
 
     last_command
 }
