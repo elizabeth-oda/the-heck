@@ -1,12 +1,11 @@
 mod rules;
 
-pub fn search_known_programs(last_command: Vec<String>) {
+pub fn search_known_programs(program_name: &String) {
     // Checks whether the command contains calls a program known to the-heck
-    let first_arg = last_command[0].to_string();
-    println!("First arg: {:?}", first_arg);
-    match first_arg.as_ref() {
+    println!("Program name: {}", program_name);
+    match program_name.as_ref() {
         "git" => rules::fix_git(),
-        &_ => todo!(),
+        &_ => println!("Not implemented yet."),
     }
 }
 
