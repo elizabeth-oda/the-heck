@@ -18,11 +18,13 @@ pub fn read_last_line_history_file(hist_file_path: PathBuf) -> String {
     let buf = RevBufReader::new(file);
     // Takes the last 128 bytes of the file
     let last_lines_in_file: Vec<String> = buf.lines().take(128).map(|l| l.expect("Could not parse line.")).collect();
-    println!("Last line in file: {}", last_lines_in_file[1]);
+    println!("Last line in file: {}", last_lines_in_file[0]);
     // Splits the last line at the semicolon which separates the command from the timestamp
     let last_line: Vec<String> = last_lines_in_file[0].split(";").map(|borrow| borrow.to_owned()).collect();
     let time_stamp = &last_line[0];
+    println!("Time stamp: {}", time_stamp);
     let last_command = last_line[1].to_string().to_owned();
+    println!("Last command from shell: {}", last_command);
 
     last_command
 }
