@@ -1,6 +1,30 @@
 use fst::automaton::Levenshtein;
 use fst::{IntoStreamer, Set};
 
+pub fn correcter(split_last_command: Vec<&str>) -> Vec<String> {
+    let program_name: &str = split_last_command[0];
+    let wrong_command: &str = split_last_command[1];
+    println!("Wrong command: {}", wrong_command);
+
+    let program_commands = check_known_programs(split_last_command);
+
+    let mut fixed_command = vec!["If you see this, that's bad".to_string()];
+
+    // TODO: Use if let instead of this mess
+    if program_commands.iter().any(|&i| i == "Not implemented!") {
+        // If the program name is unknown, fuzzy search the program name
+        let fixed_program_name = fix_program_name(program_name).unwrap();
+        let fixed_program_name = fixed_program_name.iter().map(|s| s.as_str()).collect();
+        let new_program_commands = check_known_programs(fixed_program_name);
+        // Fix the command using the new program name
+        fixed_command = fix_command(wrong_command, new_program_commands).unwrap();
+    } else {
+        fixed_command = fix_command(wrong_command, program_commands).unwrap();
+    };
+
+    fixed_command
+}
+
 pub fn check_known_programs(split_last_command: Vec<&str>) -> &[&str] {
     // Checks whether the command contains calls a program known to the-heck
     let program_name: &str = split_last_command[0];
@@ -25,7 +49,9 @@ pub fn fix_command(
     Ok(keys)
 }
 
-pub fn fix_program_name(wrong_program_name: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+pub fn fix_program_name(
+    wrong_program_name: &str,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let known_programs = vec!["cargo", "git", "sl"];
     // Implements a fuzzy search of possible commands against the query
     let set = Set::from_iter(known_programs)?;
@@ -37,7 +63,6 @@ pub fn fix_program_name(wrong_program_name: &str) -> Result<Vec<String>, Box<dyn
 
     Ok(keys)
 }
-
 
 fn get_possible_commands(prog_name: &str) -> &'static [&'static str] {
     match prog_name {
