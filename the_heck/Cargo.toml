@@ -10,3 +10,4 @@ home = "0.5.4"
 rev_buf_reader = "0.3.0"
 clap = {version = "4.1.4", features = ["derive"]}
 fst = {version = "0.4", features = ["levenshtein"]}
+dialoguer = "0.10.3"
