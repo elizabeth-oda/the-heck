@@ -27,7 +27,7 @@ pub fn read_last_line_history_file(hist_file_path: PathBuf) -> String {
         .map(|borrow| borrow.to_owned())
         .collect();
     let last_command = last_line[1].to_string();
-    println!("Last command from shell: {}", last_command);
+    // println!("Last command from shell: {}", last_command);
 
     last_command
 }

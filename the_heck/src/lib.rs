@@ -65,8 +65,10 @@ pub fn fix_program_name(
     Ok(keys)
 }
 
-pub fn push_command_to_cli(split_last_command: Vec<&str>, fixed_command: Vec<&str>) {
+pub fn push_command_to_cli(split_last_command: Vec<&str>, fixed_command: Vec<String>) {
     let mut full_command = vec!["First arg", "Second arg"];
+
+    let fixed_command: Vec<&str> = fixed_command.iter().map(|s| s.as_ref()).collect();
 
     if split_last_command[0] != fixed_command[0] {
         full_command = vec![fixed_command[0], split_last_command[1]];
@@ -77,7 +79,7 @@ pub fn push_command_to_cli(split_last_command: Vec<&str>, fixed_command: Vec<&st
     Command::new(full_command[0])
         .arg(full_command[1])
         .output()
-        .expect("Command failed to start");
+        .expect("Command failed.");
 }
 
 fn get_possible_commands(prog_name: &str) -> &'static [&'static str] {

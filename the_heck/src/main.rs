@@ -18,9 +18,9 @@ fn main() {
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Is this command correct? [Press Enter] ")
         .default(0)
-        .items(&fixed_command[..])
+        .items(&fixed_command)
         .interact()
-        .unwrap();
+        .expect("Unable to generate correct command.");
 
     // the_heck::push_command_to_cli(split_last_command, fixed_command);
 }
