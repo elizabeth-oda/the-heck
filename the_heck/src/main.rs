@@ -22,6 +22,5 @@ fn main() {
         .interact()
         .expect("Unable to generate correct command.");
 
-    // TODO: Run command when fixed
     the_heck::push_command_to_cli(last_command, fixed_command);
 }

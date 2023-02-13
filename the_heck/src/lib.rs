@@ -87,7 +87,13 @@ pub fn push_command_to_cli(last_command: String, fixed_command: Vec<String>) {
 
 fn get_possible_commands(prog_name: &str) -> &'static [&'static str] {
     match prog_name {
-        "git" => &["add", "restore", "restore --staged", "rm", "status"],
+        "git" => &[
+            "add .",
+            "branch",
+            "restore --staged .",
+            "restore .",
+            "status",
+        ],
         "sl" => &["ls"],
         "cargo" => &[
             "build",
