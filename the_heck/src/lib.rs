@@ -1,10 +1,11 @@
 use fst::automaton::Levenshtein;
 use fst::{IntoStreamer, Set};
+use std::process::Command;
 
 pub fn correcter(split_last_command: Vec<&str>) -> Vec<String> {
     let program_name: &str = split_last_command[0];
     let wrong_command: &str = split_last_command[1];
-    println!("Wrong command: {}", wrong_command);
+    // println!("Wrong command: {}", wrong_command);
 
     let program_commands = check_known_programs(split_last_command);
 
@@ -28,7 +29,7 @@ pub fn correcter(split_last_command: Vec<&str>) -> Vec<String> {
 pub fn check_known_programs(split_last_command: Vec<&str>) -> &[&str] {
     // Checks whether the command contains calls a program known to the-heck
     let program_name: &str = split_last_command[0];
-    println!("Program name: {}", program_name);
+    // println!("Program name: {}", program_name);
     let program_commands = get_possible_commands(program_name);
 
     program_commands
@@ -62,6 +63,21 @@ pub fn fix_program_name(
     let keys = stream.into_strs()?;
 
     Ok(keys)
+}
+
+pub fn push_command_to_cli(split_last_command: Vec<&str>, fixed_command: Vec<&str>) {
+    let mut full_command = vec!["First arg", "Second arg"];
+
+    if split_last_command[0] != fixed_command[0] {
+        full_command = vec![fixed_command[0], split_last_command[1]];
+    } else {
+        full_command = vec![split_last_command[0], fixed_command[0]];
+    }
+
+    Command::new(full_command[0])
+        .arg(full_command[1])
+        .output()
+        .expect("Command failed to start");
 }
 
 fn get_possible_commands(prog_name: &str) -> &'static [&'static str] {
