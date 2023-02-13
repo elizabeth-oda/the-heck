@@ -11,7 +11,7 @@ fn main() {
     // println!("Command line arguments: {:?}", split_last_command);
 
     // Correct the command
-    let fixed_command = heck::correcter(split_last_command);
+    let fixed_command = the_heck::correcter(split_last_command);
     // println!("Fixed command: {:?}", fixed_command);
 
     // Return fix to shell

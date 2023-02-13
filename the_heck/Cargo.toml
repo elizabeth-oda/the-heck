@@ -1,5 +1,5 @@
 [package]
-name = "heck"
+name = "the_heck"
 description = "A command line corrector based on thefuck"
 author = "Elizabeth Oda"
 version = "0.1.0"
@@ -14,3 +14,7 @@ rev_buf_reader = "0.3.0"
 clap = {version = "4.1.4", features = ["derive"]}
 fst = {version = "0.4", features = ["levenshtein"]}
 dialoguer = "0.10.3"
+
+[[bin]]
+name = "heck"
+path = "src/main.rs"
