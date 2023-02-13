@@ -1,8 +1,8 @@
 [package]
 name = "the_heck"
-description = "A command line corrector based on thefuck"
+description = "A command line corrector inspired by thefuck"
 author = "Elizabeth Oda"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 edition = "2021"
 
