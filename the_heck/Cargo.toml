@@ -1,5 +1,5 @@
 [package]
-name = "the_heck"
+name = "heck"
 description = "A command line corrector based on thefuck"
 author = "Elizabeth Oda"
 version = "0.1.0"

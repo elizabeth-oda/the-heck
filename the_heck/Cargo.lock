@@ -41,7 +41,7 @@ version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "684a277d672e91966334af371f1a7b5833f9aa00b07c84e92fbce95e00208ce8"
 dependencies = [
- "heck",
+ "heck 0.4.0",
  "proc-macro-error",
  "proc-macro2",
  "quote",
@@ -125,6 +125,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ab85b9b05e3978cc9a9cf8fea7f01b494e1a09ed3037e16ba39edc7a29eb61a"
 dependencies = [
  "utf8-ranges",
+]
+
+[[package]]
+name = "heck"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "dialoguer",
+ "fst",
+ "home",
+ "rev_buf_reader",
 ]
 
 [[package]]
@@ -345,17 +356,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be55cf8942feac5c765c2c993422806843c9a9a45d4d5c407ad6dd2ea95eb9b6"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "the_heck"
-version = "0.1.0"
-dependencies = [
- "clap",
- "dialoguer",
- "fst",
- "home",
- "rev_buf_reader",
 ]
 
 [[package]]

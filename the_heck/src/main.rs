@@ -11,16 +11,17 @@ fn main() {
     // println!("Command line arguments: {:?}", split_last_command);
 
     // Correct the command
-    let fixed_command = the_heck::correcter(split_last_command);
+    let fixed_command = heck::correcter(split_last_command);
     // println!("Fixed command: {:?}", fixed_command);
 
     // Return fix to shell
-    let selection = Select::with_theme(&ColorfulTheme::default())
+    let _selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Is this command correct? [Press Enter] ")
         .default(0)
         .items(&fixed_command)
         .interact()
         .expect("Unable to generate correct command.");
 
+    // TODO: Run command when fixed
     // the_heck::push_command_to_cli(split_last_command, fixed_command);
 }
