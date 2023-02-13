@@ -1,5 +1,6 @@
 use fst::automaton::Levenshtein;
 use fst::{IntoStreamer, Set};
+use std::io::{self, Write};
 use std::process::Command;
 
 pub fn correcter(split_last_command: Vec<&str>) -> Vec<String> {
@@ -65,21 +66,23 @@ pub fn fix_program_name(
     Ok(keys)
 }
 
-pub fn push_command_to_cli(split_last_command: Vec<&str>, fixed_command: Vec<String>) {
+pub fn push_command_to_cli(last_command: String, fixed_command: Vec<String>) {
     let mut full_command = vec!["First arg", "Second arg"];
+    let split_last_command: Vec<&str> = last_command.split(' ').collect();
 
     let fixed_command: Vec<&str> = fixed_command.iter().map(|s| s.as_ref()).collect();
 
-    if split_last_command[0] != fixed_command[0] {
-        full_command = vec![fixed_command[0], split_last_command[1]];
-    } else {
-        full_command = vec![split_last_command[0], fixed_command[0]];
-    }
+    // TODO: Support program name fixes
+    full_command = vec![split_last_command[0], fixed_command[0]];
 
-    Command::new(full_command[0])
+    let selection = Command::new(full_command[0])
         .arg(full_command[1])
         .output()
         .expect("Command failed.");
+
+    println!("Fix successful!");
+    io::stdout().write_all(&selection.stdout).unwrap();
+    io::stderr().write_all(&selection.stderr).unwrap();
 }
 
 fn get_possible_commands(prog_name: &str) -> &'static [&'static str] {
