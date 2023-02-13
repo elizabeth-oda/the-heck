@@ -2,7 +2,9 @@
 name = "the_heck"
 description = "A command line corrector inspired by thefuck"
 author = "Elizabeth Oda"
-version = "0.1.1"
+version = "0.1.2"
+readme = "README.md"
+repository = "https://github.com/elizabeth-oda/the-heck"
 license = "MIT"
 edition = "2021"
 
