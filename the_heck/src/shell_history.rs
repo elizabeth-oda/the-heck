@@ -72,7 +72,7 @@ pub fn get_last_command_from_shell_history(hist_file_path: &PathBuf) -> String {
         ".histfile" => get_last_command_from_histfile(&hist_file_path),
         _ => panic!("Support for {} is not implemented yet.", history_file_name),
     };
-    println!("Last command from shell: {}", last_command);
+    // println!("Last command from shell: {}", last_command);
     last_command
 }
 
