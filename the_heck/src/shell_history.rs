@@ -79,7 +79,11 @@ pub fn get_last_command_from_shell_history(hist_file_path: &PathBuf) -> String {
 fn get_last_command_from_histfile(histfile_path: &PathBuf) -> String {
     let file = File::open(histfile_path).expect("Could not open .histfile.");
     let reader = RevBufReader::new(file);
-    reader.lines().next().unwrap().unwrap()
+    reader
+        .lines()
+        .next()
+        .expect("Cannot find last line in .histfile")
+        .unwrap()
 }
 
 fn get_last_command_from_zsh_history(zsh_history_path: &PathBuf) -> String {
