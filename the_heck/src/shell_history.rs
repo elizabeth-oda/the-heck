@@ -65,8 +65,25 @@ pub fn get_history_file_path() -> PathBuf {
     }
 }
 
-pub fn read_last_line_history_file(hist_file_path: PathBuf) -> String {
-    let file = File::open(hist_file_path).expect("Could not open history file.");
+pub fn get_last_command_from_shell_history(hist_file_path: &PathBuf) -> String {
+    let history_file_name = hist_file_path.file_name().unwrap().to_str().unwrap();
+    let last_command = match history_file_name {
+        ".zsh_history" => get_last_command_from_zsh_history(&hist_file_path),
+        ".histfile" => get_last_command_from_histfile(&hist_file_path),
+        _ => panic!("Support for {} is not implemented yet.", history_file_name),
+    };
+    println!("Last command from shell: {}", last_command);
+    last_command
+}
+
+fn get_last_command_from_histfile(histfile_path: &PathBuf) -> String {
+    let file = File::open(histfile_path).expect("Could not open .histfile.");
+    let reader = RevBufReader::new(file);
+    reader.lines().next().unwrap().unwrap()
+}
+
+fn get_last_command_from_zsh_history(zsh_history_path: &PathBuf) -> String {
+    let file = File::open(zsh_history_path).expect("Could not open .zsh_history.");
     let buf = RevBufReader::new(file);
     // Takes the last 128 bytes of the file
     let last_lines_in_file: Vec<String> = buf
@@ -80,7 +97,6 @@ pub fn read_last_line_history_file(hist_file_path: PathBuf) -> String {
         .map(|borrow| borrow.to_owned())
         .collect();
     let last_command = last_line[1].to_string();
-    // println!("Last command from shell: {}", last_command);
 
     last_command
 }
