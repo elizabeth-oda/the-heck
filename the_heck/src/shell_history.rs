@@ -13,10 +13,10 @@ fn get_current_shell_config() -> PathBuf {
     // TODO: user might have changed their default shell config.
     // Thus, if `heck` is run from a shell other than the default shell,
     // this approach won't work.
-    match shell_path.split("/").last().unwrap() {
+    match shell_path.split('/').last().unwrap() {
         "zsh" => user_home_dir.push(".zshrc"),
         "bash" => user_home_dir.push(".bashrc"),
-        _ => panic!("Support for shell '{}' is not implemented yet.", shell_path),
+        _ => panic!("Support for shell '{shell_path}' is not implemented yet."),
     };
     user_home_dir
 }
@@ -27,9 +27,9 @@ fn get_history_file_path_from_config(config_file_path: &PathBuf) -> Option<PathB
     let reader = BufReader::new(zfile);
     let line_marker = "HISTFILE=";
 
-    let mut lines_iter = reader.lines().filter_map(Result::ok);
+    let lines_iter = reader.lines().filter_map(Result::ok);
 
-    while let Some(line) = lines_iter.next() {
+    for line in lines_iter {
         if line.starts_with(line_marker) {
             let temp = PathBuf::from(line.split(line_marker).last().unwrap());
             let mut hist_file_path = PathBuf::new();
@@ -60,7 +60,7 @@ pub fn get_history_file_path() -> PathBuf {
         hist_path_from_config
     } else {
         // otherwise, use default history file for given shell
-        let mut hist_path_default = shell_config_path.parent().unwrap().to_owned().clone();
+        let mut hist_path_default = shell_config_path.parent().unwrap().to_owned();
         match shell_config_path.file_name().unwrap().to_str() {
             Some(".zshrc") => hist_path_default.push(".zsh_history"),
             Some(".bashrc") => hist_path_default.push(".bash_history"),
@@ -77,9 +77,9 @@ pub fn get_history_file_path() -> PathBuf {
 pub fn get_last_command_from_shell_history(hist_file_path: &PathBuf) -> String {
     let history_file_name = hist_file_path.file_name().unwrap().to_str().unwrap();
     let last_command = match history_file_name {
-        ".zsh_history" => get_last_command_from_zsh_history(&hist_file_path),
-        ".histfile" => get_last_command_from_histfile(&hist_file_path),
-        _ => panic!("Support for {} is not implemented yet.", history_file_name),
+        ".zsh_history" => get_last_command_from_zsh_history(hist_file_path),
+        ".histfile" => get_last_command_from_histfile(hist_file_path),
+        _ => panic!("Support for {history_file_name} is not implemented yet."),
     };
     // println!("Last command from shell: {}", last_command);
     last_command
@@ -111,7 +111,7 @@ fn get_last_command_from_zsh_history(zsh_history_path: &PathBuf) -> String {
         .split(';')
         .map(|borrow| borrow.to_owned())
         .collect();
-    let last_command = last_line[1].to_string();
+    
 
-    last_command
+    last_line[1].to_string()
 }
