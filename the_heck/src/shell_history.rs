@@ -4,12 +4,15 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
+/// Returns the path to the configuration file of the current default shell.
+/// The shell is determined using the `$SHELL` environment varible.
 fn get_current_shell_config() -> PathBuf {
     let shell_path = env::var("SHELL").expect("Cannot find current shell");
     let mut user_home_dir = home::home_dir().expect("No home directory found.");
 
     // TODO: user might have changed their default shell config.
-    // How to handle that?
+    // Thus, if `heck` is run from a shell other than the default shell,
+    // this approach won't work.
     match shell_path.split("/").last().unwrap() {
         "zsh" => user_home_dir.push(".zshrc"),
         "bash" => user_home_dir.push(".bashrc"),
@@ -18,6 +21,7 @@ fn get_current_shell_config() -> PathBuf {
     user_home_dir
 }
 
+/// Reads a shell config file and returns the path to the history file if it is configured in the config.
 fn get_history_file_path_from_config(config_file_path: &PathBuf) -> Option<PathBuf> {
     let zfile = File::open(config_file_path).expect("Could not open shell config file.");
     let reader = BufReader::new(zfile);
@@ -44,6 +48,10 @@ fn get_history_file_path_from_config(config_file_path: &PathBuf) -> Option<PathB
     None
 }
 
+/// Returns the path to the currently used shell history file.
+/// Will read the path from the shell config, if present. Else, use
+/// default history file for default shell (i.e., `.zsh_history` for
+/// zsh, `.bash_history` for bash)
 pub fn get_history_file_path() -> PathBuf {
     let shell_config_path = get_current_shell_config();
 
@@ -65,6 +73,7 @@ pub fn get_history_file_path() -> PathBuf {
     }
 }
 
+/// Get last command from a given history file
 pub fn get_last_command_from_shell_history(hist_file_path: &PathBuf) -> String {
     let history_file_name = hist_file_path.file_name().unwrap().to_str().unwrap();
     let last_command = match history_file_name {
@@ -76,6 +85,7 @@ pub fn get_last_command_from_shell_history(hist_file_path: &PathBuf) -> String {
     last_command
 }
 
+/// Reads the last command from `.histfile`
 fn get_last_command_from_histfile(histfile_path: &PathBuf) -> String {
     let file = File::open(histfile_path).expect("Could not open .histfile.");
     let reader = RevBufReader::new(file);
@@ -86,6 +96,7 @@ fn get_last_command_from_histfile(histfile_path: &PathBuf) -> String {
         .unwrap()
 }
 
+/// Reads the last command from `.zsh_history`
 fn get_last_command_from_zsh_history(zsh_history_path: &PathBuf) -> String {
     let file = File::open(zsh_history_path).expect("Could not open .zsh_history.");
     let buf = RevBufReader::new(file);
