@@ -111,7 +111,6 @@ fn get_last_command_from_zsh_history(zsh_history_path: &PathBuf) -> String {
         .split(';')
         .map(|borrow| borrow.to_owned())
         .collect();
-    
 
     last_line[1].to_string()
 }
