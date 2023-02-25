@@ -22,7 +22,7 @@ nothing to commit, working tree clean
 (personal) ➜  the_heck git:(main) 
 ```
 
-Version `0.1.4` is very much a work-in-progress. It only supports a handful of commands and there are known bugs.
+Version `0.1.5` is very much a work-in-progress. It only supports a handful of commands and there are known bugs.
 
 ## Currently supported programs and arguments
 
