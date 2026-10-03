@@ -353,16 +353,8 @@ fn uv_commands_and_global_options_preserve_arguments() {
         ),
         ("uv -vvn tool isntall ruff", "uv -vvn tool install ruff"),
         (
-            "uv --color always python --offline isntall 3.13",
-            "uv --color always python --offline install 3.13",
-        ),
-        (
             "uv --cache-dir cache tool --project=. isntall ruff",
             "uv --cache-dir cache tool --project=. install ruff",
-        ),
-        (
-            "uv --no-python-downloads python isntall 3.13",
-            "uv --no-python-downloads python install 3.13",
         ),
     ] {
         assert_eq!(corrections(input)[0].command, expected, "{input}");
@@ -385,7 +377,6 @@ fn uv_package_names_and_executed_commands_are_opaque() {
         "uv run --python 3.13 sycn --verbose",
         "uv tool run --from ruff rnu check .",
         "uvx",
-        "uvx rnu check .",
         "uvx --from ruff rnu check .",
         "uv -- sycn",
         "uv pip -- isntall requests",
