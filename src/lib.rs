@@ -1,109 +1,395 @@
-use fst::automaton::Levenshtein;
-use fst::{IntoStreamer, Set};
-use std::io::{self, Write};
-use std::process::Command;
+//! Suggest small edits to shell commands without evaluating or executing them.
+//!
+//! Only simple commands in the shared Bash/Zsh syntax subset are supported.
+//! Edits use UTF-8 byte offsets into the original input.
+mod lexer;
 
-pub fn correcter(split_last_command: Vec<&str>) -> Vec<String> {
-    let program_name: &str = split_last_command[0];
-    let wrong_command: &str = split_last_command[1];
-    // println!("Wrong command: {}", wrong_command);
+use std::ops::Range;
 
-    let program_commands = check_known_programs(split_last_command);
-
-    let mut fixed_command = vec!["If you see this, that's bad".to_string()];
-
-    // TODO: Use if let instead of this mess
-    if program_commands.iter().any(|&i| i == "Not implemented!") {
-        // If the program name is unknown, fuzzy search the program name
-        let fixed_program_name = fix_program_name(program_name).unwrap();
-        let fixed_program_name = fixed_program_name.iter().map(|s| s.as_str()).collect();
-        let new_program_commands = check_known_programs(fixed_program_name);
-        // Fix the command using the new program name
-        fixed_command = fix_command(wrong_command, new_program_commands).unwrap();
-    } else {
-        fixed_command = fix_command(wrong_command, program_commands).unwrap();
-    };
-
-    fixed_command
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TextEdit {
+    pub range: Range<usize>,
+    pub replacement: String,
 }
 
-pub fn check_known_programs(split_last_command: Vec<&str>) -> &[&str] {
-    // Checks whether the command contains calls a program known to the-heck
-    let program_name: &str = split_last_command[0];
-    // println!("Program name: {}", program_name);
-    let program_commands = get_possible_commands(program_name);
-
-    program_commands
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Suggestion {
+    pub command: String,
+    pub edits: Vec<TextEdit>,
+    pub reason: String,
+    pub distance: usize,
 }
 
-pub fn fix_command(
-    wrong_command: &str,
-    possible_commands: &[&str],
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    // Implements a fuzzy search of possible commands against the query
-    let set = Set::from_iter(possible_commands)?;
-    // The maximum Levenshtein distance = 2
-    let lev = Levenshtein::new(wrong_command, 2)?;
-    let stream = set.search(lev).into_stream();
-    // Returns the list of possible commands
-    let keys = stream.into_strs()?;
-
-    Ok(keys)
+/// Facts supplied by the active shell. No commands are run by the engine.
+#[derive(Debug, Default)]
+pub struct Context {
+    /// The original program already resolves to an executable or shell builtin.
+    pub program_known: bool,
+    /// The original program is an alias or function; its grammar is unknown.
+    pub program_shadowed: bool,
 }
 
-pub fn fix_program_name(
-    wrong_program_name: &str,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let known_programs = vec!["cargo", "git", "sl"];
-    // Implements a fuzzy search of possible commands against the query
-    let set = Set::from_iter(known_programs)?;
-    // The maximum Levenshtein distance = 2
-    let lev = Levenshtein::new(wrong_program_name, 2)?;
-    let stream = set.search(lev).into_stream();
-    // Returns the list of possible commands
-    let keys = stream.into_strs()?;
-
-    Ok(keys)
+#[derive(Debug, PartialEq, Eq)]
+pub enum Outcome {
+    Suggestions(Vec<Suggestion>),
+    NoMatch,
+    Unsupported(&'static str),
 }
 
-pub fn push_command_to_cli(last_command: String, fixed_command: Vec<String>) {
-    let mut full_command = vec!["First arg", "Second arg"];
-    let split_last_command: Vec<&str> = last_command.split(' ').collect();
+// These are command words, never command lines containing flags or arguments.
+const GIT: &[&str] = &[
+    "add",
+    "am",
+    "annotate",
+    "apply",
+    "archive",
+    "bisect",
+    "blame",
+    "branch",
+    "bugreport",
+    "bundle",
+    "cat-file",
+    "check-attr",
+    "check-ignore",
+    "check-mailmap",
+    "check-ref-format",
+    "checkout",
+    "checkout-index",
+    "cherry",
+    "cherry-pick",
+    "clean",
+    "clone",
+    "column",
+    "commit",
+    "commit-graph",
+    "commit-tree",
+    "config",
+    "count-objects",
+    "credential",
+    "credential-cache",
+    "credential-store",
+    "daemon",
+    "describe",
+    "diagnose",
+    "diff",
+    "diff-files",
+    "diff-index",
+    "diff-tree",
+    "difftool",
+    "fast-export",
+    "fast-import",
+    "fetch",
+    "fetch-pack",
+    "filter-branch",
+    "fmt-merge-msg",
+    "for-each-ref",
+    "for-each-repo",
+    "format-patch",
+    "fsck",
+    "fsck-objects",
+    "gc",
+    "get-tar-commit-id",
+    "grep",
+    "hash-object",
+    "help",
+    "hook",
+    "http-backend",
+    "http-fetch",
+    "http-push",
+    "imap-send",
+    "index-pack",
+    "init",
+    "init-db",
+    "instaweb",
+    "interpret-trailers",
+    "log",
+    "ls-files",
+    "ls-remote",
+    "ls-tree",
+    "mailinfo",
+    "mailsplit",
+    "maintenance",
+    "merge",
+    "merge-base",
+    "merge-file",
+    "merge-index",
+    "merge-tree",
+    "mergetool",
+    "mktag",
+    "mktree",
+    "multi-pack-index",
+    "mv",
+    "name-rev",
+    "notes",
+    "pack-objects",
+    "pack-redundant",
+    "pack-refs",
+    "patch-id",
+    "pickaxe",
+    "prune",
+    "prune-packed",
+    "pull",
+    "push",
+    "quiltimport",
+    "range-diff",
+    "read-tree",
+    "rebase",
+    "receive-pack",
+    "reflog",
+    "remote",
+    "repack",
+    "replace",
+    "request-pull",
+    "rerere",
+    "reset",
+    "restore",
+    "rev-list",
+    "rev-parse",
+    "revert",
+    "rm",
+    "send-pack",
+    "shell",
+    "shortlog",
+    "show",
+    "show-branch",
+    "show-index",
+    "show-ref",
+    "sparse-checkout",
+    "stage",
+    "stash",
+    "status",
+    "stripspace",
+    "submodule",
+    "subtree",
+    "switch",
+    "symbolic-ref",
+    "tag",
+    "unpack-file",
+    "unpack-objects",
+    "update-index",
+    "update-ref",
+    "update-server-info",
+    "upload-archive",
+    "upload-pack",
+    "var",
+    "verify-commit",
+    "verify-pack",
+    "verify-tag",
+    "version",
+    "whatchanged",
+    "worktree",
+    "write-tree",
+];
+const CARGO: &[&str] = &[
+    "add",
+    "b",
+    "bench",
+    "build",
+    "c",
+    "check",
+    "clean",
+    "clippy",
+    "config",
+    "d",
+    "doc",
+    "fetch",
+    "fix",
+    "fmt",
+    "generate-lockfile",
+    "git-checkout",
+    "help",
+    "info",
+    "init",
+    "install",
+    "locate-project",
+    "login",
+    "logout",
+    "metadata",
+    "miri",
+    "new",
+    "owner",
+    "package",
+    "pkgid",
+    "publish",
+    "r",
+    "read-manifest",
+    "remove",
+    "report",
+    "rm",
+    "run",
+    "rustc",
+    "rustdoc",
+    "search",
+    "t",
+    "test",
+    "tree",
+    "uninstall",
+    "update",
+    "vendor",
+    "verify-project",
+    "version",
+    "yank",
+];
 
-    let fixed_command: Vec<&str> = fixed_command.iter().map(|s| s.as_ref()).collect();
-
-    // TODO: Support program name fixes
-    full_command = vec![split_last_command[0], fixed_command[0]];
-
-    let selection = Command::new(full_command[0])
-        .arg(full_command[1])
-        .output()
-        .expect("Command failed.");
-
-    println!("Fix successful!");
-    io::stdout().write_all(&selection.stdout).unwrap();
-    io::stderr().write_all(&selection.stderr).unwrap();
-}
-
-fn get_possible_commands(prog_name: &str) -> &'static [&'static str] {
-    match prog_name {
-        "git" => &[
-            "add .",
-            "branch",
-            "restore --staged .",
-            "restore .",
-            "status",
-        ],
-        "sl" => &["ls"],
-        "cargo" => &[
-            "build",
-            "clippy",
-            "fmt",
-            "install",
-            "run",
-            "test",
-            "uninstall",
-        ],
-        _ => &["Not implemented!"],
+fn commands(program: &str) -> Option<&'static [&'static str]> {
+    match program {
+        "git" => Some(GIT),
+        "cargo" => Some(CARGO),
+        _ => None,
     }
+}
+
+/// Return ranked, complete suggestions. Everything outside the edited words is
+/// copied verbatim. Unknown syntax is declined rather than interpreted.
+pub fn suggest(input: &str, context: &Context) -> Outcome {
+    let tokens = match lexer::tokenize(input) {
+        Ok(tokens) => tokens,
+        Err(message) => return Outcome::Unsupported(message),
+    };
+    let Some(program_token) = tokens.first() else {
+        return Outcome::NoMatch;
+    };
+    if context.program_shadowed {
+        return Outcome::NoMatch;
+    }
+    if !program_token.literal {
+        return Outcome::Unsupported("Use a literal, unquoted program name.");
+    }
+    let program = &input[program_token.range.clone()];
+    if program.contains('=') {
+        return Outcome::Unsupported(
+            "Environment assignments before commands are not supported yet.",
+        );
+    }
+    if context.program_known && commands(program).is_none() {
+        return Outcome::NoMatch;
+    }
+    let programs = matches(program, &["cargo", "git"]);
+    if programs.is_empty() {
+        return Outcome::NoMatch;
+    }
+    if let Some(token) = tokens.get(1) {
+        if !token.literal {
+            return Outcome::Unsupported("Use a literal, unquoted subcommand.");
+        }
+        if input[token.range.clone()].starts_with(['-', '+']) {
+            return Outcome::Unsupported(
+                "Options or toolchain selectors before the subcommand are not supported yet.",
+            );
+        }
+    }
+
+    let mut results = Vec::new();
+    for (fixed_program, program_distance) in programs {
+        let subcommands = match tokens.get(1) {
+            Some(token) => matches(
+                &input[token.range.clone()],
+                commands(fixed_program).unwrap(),
+            ),
+            None => vec![("", 0)],
+        };
+        for (fixed_subcommand, subcommand_distance) in subcommands {
+            let mut edits = Vec::new();
+            let mut reasons = Vec::new();
+            if program_distance > 0 {
+                edits.push(TextEdit {
+                    range: program_token.range.clone(),
+                    replacement: fixed_program.to_owned(),
+                });
+                reasons.push(format!("Program: {program} → {fixed_program}"));
+            }
+            if subcommand_distance > 0 {
+                let token = &tokens[1];
+                let subcommand = &input[token.range.clone()];
+                edits.push(TextEdit {
+                    range: token.range.clone(),
+                    replacement: fixed_subcommand.to_owned(),
+                });
+                reasons.push(format!(
+                    "{fixed_program} subcommand: {subcommand} → {fixed_subcommand}"
+                ));
+            }
+            if !edits.is_empty() {
+                results.push(candidate(
+                    input,
+                    edits,
+                    reasons,
+                    program_distance + subcommand_distance,
+                ));
+            }
+        }
+    }
+    results.sort_by(|a, b| {
+        (a.distance, a.edits.len(), &a.command).cmp(&(b.distance, b.edits.len(), &b.command))
+    });
+    results.truncate(8);
+    if results.is_empty() {
+        Outcome::NoMatch
+    } else {
+        Outcome::Suggestions(results)
+    }
+}
+
+fn candidate(
+    input: &str,
+    edits: Vec<TextEdit>,
+    reasons: Vec<String>,
+    distance: usize,
+) -> Suggestion {
+    let mut command = input.to_owned();
+    // The edits are ordered by their original position. Apply from the end so
+    // earlier byte offsets remain valid when replacements have different sizes.
+    for edit in edits.iter().rev() {
+        command.replace_range(edit.range.clone(), &edit.replacement);
+    }
+    Suggestion {
+        command,
+        edits,
+        reason: reasons.join("; "),
+        distance,
+    }
+}
+
+fn matches<'a>(word: &'a str, candidates: &[&'a str]) -> Vec<(&'a str, usize)> {
+    if candidates.contains(&word) {
+        return vec![(word, 0)];
+    }
+    if word.len() < 2 || !word.is_ascii() {
+        return Vec::new();
+    }
+    let limit = if word.len() <= 3 { 1 } else { 2 };
+    candidates
+        .iter()
+        .filter_map(|&candidate| {
+            // One-letter Cargo aliases are valid input, but poor suggestions.
+            if candidate.len() < 2 || word.len().abs_diff(candidate.len()) > limit {
+                return None;
+            }
+            let distance = edit_distance(word.as_bytes(), candidate.as_bytes());
+            (distance > 0 && distance <= limit).then_some((candidate, distance))
+        })
+        .collect()
+}
+
+// Optimal string alignment distance: adjacent transpositions count as one typo.
+// The vocabulary is small, so a matrix is simpler than building a search index.
+fn edit_distance(a: &[u8], b: &[u8]) -> usize {
+    let mut rows = vec![vec![0; b.len() + 1]; a.len() + 1];
+    for (i, row) in rows.iter_mut().enumerate() {
+        row[0] = i;
+    }
+    for (j, value) in rows[0].iter_mut().enumerate() {
+        *value = j;
+    }
+    for i in 1..=a.len() {
+        for j in 1..=b.len() {
+            rows[i][j] = (rows[i - 1][j] + 1)
+                .min(rows[i][j - 1] + 1)
+                .min(rows[i - 1][j - 1] + usize::from(a[i - 1] != b[j - 1]));
+            if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
+                rows[i][j] = rows[i][j].min(rows[i - 2][j - 2] + 1);
+            }
+        }
+    }
+    rows[a.len()][b.len()]
 }
