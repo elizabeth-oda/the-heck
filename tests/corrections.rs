@@ -62,7 +62,7 @@ fn valid_and_unrecognized_commands_have_no_match() {
 
 #[test]
 fn shell_aliases_functions_and_existing_programs_are_preserved() {
-    for input in ["gti status", "git stats", "cargo bulid"] {
+    for input in ["gti status", "git stats", "cargo bulid", "uv sycn"] {
         assert_eq!(
             suggest(
                 input,
@@ -74,16 +74,18 @@ fn shell_aliases_functions_and_existing_programs_are_preserved() {
             Outcome::NoMatch
         );
     }
-    assert_eq!(
-        suggest(
-            "gti status",
-            &Context {
-                program_known: true,
-                ..Context::default()
-            }
-        ),
-        Outcome::NoMatch
-    );
+    for input in ["gti status", "vu sync"] {
+        assert_eq!(
+            suggest(
+                input,
+                &Context {
+                    program_known: true,
+                    ..Context::default()
+                }
+            ),
+            Outcome::NoMatch
+        );
+    }
     assert_eq!(
         match suggest(
             "git stats",
@@ -304,9 +306,87 @@ fn uncertain_options_and_dynamic_git_context_are_declined() {
         "gh pr --unknown value veiw",
         "gh --repo",
         "git remote --verbose=yes ad",
+        "uv --unknown value sycn",
+        "uv --project",
+        "uv --offline=yes sycn",
+        "uv -C repo sycn",
+        "uv -p python3 sycn",
     ] {
         assert!(
             matches!(suggest(input, &Context::default()), Outcome::Unsupported(_)),
+            "{input}"
+        );
+    }
+}
+
+#[test]
+fn uv_commands_and_global_options_preserve_arguments() {
+    for (input, expected) in [
+        ("vu sync", "uv sync"),
+        ("uv sncy", "uv sync"),
+        (
+            "uv pip isntall 'requests[socks]>=2'",
+            "uv pip install 'requests[socks]>=2'",
+        ),
+        (
+            "uv tool isntall --from 'ruff==0.14.0' ruff",
+            "uv tool install --from 'ruff==0.14.0' ruff",
+        ),
+        ("uv pythno isntall 3.13", "uv python install 3.13"),
+        ("uv cache claen ruff", "uv cache clean ruff"),
+        (
+            "uv auth logni https://packages.example.com",
+            "uv auth login https://packages.example.com",
+        ),
+        ("uv self udpate", "uv self update"),
+        (
+            "  uv --project \"日本語 project\" --offline sycn  ",
+            "  uv --project \"日本語 project\" --offline sync  ",
+        ),
+        (
+            "uv --directory='./my project' tool --offline isntall ruff",
+            "uv --directory='./my project' tool --offline install ruff",
+        ),
+        (
+            "uv tool --project \"$PROJECT\" isntall ruff",
+            "uv tool --project \"$PROJECT\" install ruff",
+        ),
+        ("uv -vvn tool isntall ruff", "uv -vvn tool install ruff"),
+        (
+            "uv --cache-dir cache tool --project=. isntall ruff",
+            "uv --cache-dir cache tool --project=. install ruff",
+        ),
+    ] {
+        assert_eq!(corrections(input)[0].command, expected, "{input}");
+    }
+}
+
+#[test]
+fn uv_package_names_and_executed_commands_are_opaque() {
+    for input in [
+        "uv",
+        "uv sync",
+        "uv add isntall",
+        "uv pip install sncy",
+        "uv python install isntall",
+        "uv tool install rnu",
+        "uv tool update --all",
+        "uv python ls",
+        "uv virtualenv sycn",
+        "uv run uv sycn",
+        "uv run --python 3.13 sycn --verbose",
+        "uv tool run --from ruff rnu check .",
+        "uvx",
+        "uvx --from ruff rnu check .",
+        "uv -- sycn",
+        "uv pip -- isntall requests",
+        "uv --help sycn",
+        "uv --version sycn",
+        "uv help tool isntall",
+    ] {
+        assert_eq!(
+            suggest(input, &Context::default()),
+            Outcome::NoMatch,
             "{input}"
         );
     }

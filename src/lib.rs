@@ -123,7 +123,8 @@ fn programs<'a>(
     if program.contains('=') {
         return Err("Environment assignments before commands are not supported yet.");
     }
-    if context.program_known && !catalog::PROGRAMS.contains(&program) {
+    // uvx forwards its arguments to a Python tool; it is not a typo for uv.
+    if program == "uvx" || (context.program_known && !catalog::PROGRAMS.contains(&program)) {
         return Ok(Vec::new());
     }
     Ok(matches(program, catalog::PROGRAMS))

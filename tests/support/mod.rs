@@ -143,7 +143,7 @@ esac
 case "$1" in stat|stats|bulid) exit 1;; esac
 "#;
 
-        for name in ["git", "cargo", "gh"] {
+        for name in ["git", "cargo", "gh", "uv"] {
             executable(&bin.join(name), recorder);
         }
         let mut rc = format!(
