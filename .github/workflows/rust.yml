@@ -1,6 +1,6 @@
 name: Rust
 
-on: [push,pull_request]
+on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always
@@ -26,5 +26,21 @@ jobs:
         with:
           components: clippy
       - name: Linting
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --locked --all-targets -- -D warnings
 
+  test:
+    name: Rust and shell integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install shell test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes zsh
+      - name: Rust and terminal tests
+        run: cargo test --locked
+      - name: Shell syntax
+        run: |
+          bash -n shell/heck.bash
+          zsh -n shell/heck.zsh
