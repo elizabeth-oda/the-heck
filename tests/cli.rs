@@ -58,6 +58,8 @@ fn malformed_cli_input_is_rejected() {
         vec!["suggest", "--stdin", "--", "git stats"],
         vec!["suggest", "--", "git", "stats"],
         vec!["suggest", "--unknown", "--", "git stats"],
+        vec!["init", "fish"],
+        vec!["init", "bash", "extra"],
         vec!["suggest", "--"],
     ] {
         let output = heck(&args);

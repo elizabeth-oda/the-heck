@@ -8,6 +8,13 @@ repository = "https://github.com/elizabeth-oda/the-heck"
 license = "MIT"
 edition = "2021"
 
+[dependencies]
+console = "0.15.5"
+
 [[bin]]
 name = "heck"
 path = "src/main.rs"
+
+[target."cfg(unix)".dev-dependencies]
+libc = "0.2"
+tempfile = "3"

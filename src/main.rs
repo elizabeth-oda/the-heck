@@ -1,19 +1,34 @@
+mod picker;
+
 use std::io::{self, IsTerminal, Read, Write};
 use std::process::ExitCode;
 use the_heck::{Context, Outcome};
 
 const HELP: &str = "\
-heck — suggest small repairs to Git and Cargo commands
+heck — suggest small repairs to Bash and Zsh commands
 
-Usage:
+Daily use (after shell setup):
+  heck                         repair the previous command, then edit it
+
+One-time setup for the current shell:
+  source <(heck init bash)      Bash
+  source <(heck init zsh)       Zsh
+
+Other commands:
   heck suggest -- 'command text'
   heck suggest --stdin
+  heck pick    --stdin
+  heck init bash|zsh
   heck --help
   heck --version
 
-suggest prints complete candidates, one per line, without executing them.
+suggest prints complete candidates, one per line.
+pick offers a terminal menu and prints only the accepted command.
+Accepting opens an editable prompt; press Enter again to run the command.
+init enables bare heck in your shell.
 
-Exit codes: 0 success; 1 no match; 2 invalid/unsupported input; 3 I/O error.
+Exit codes: 0 success; 1 no match; 2 invalid/unsupported input;
+            3 I/O or terminal error; 130 cancelled.
 ";
 
 fn main() -> ExitCode {
@@ -43,16 +58,33 @@ fn run() -> CliResult {
             println!("heck {}", env!("CARGO_PKG_VERSION"));
             return Ok(0);
         }
-        "suggest" => {}
+        "init" => {
+            let script = match args.next().as_deref() {
+                Some("bash") => include_str!("../shell/heck.bash"),
+                Some("zsh") => include_str!("../shell/heck.zsh"),
+                _ => return Err((2, "Use 'heck init bash' or 'heck init zsh'.".into())),
+            };
+            if args.next().is_some() {
+                return Err((2, "Unexpected argument to init.".into()));
+            }
+            io::stdout()
+                .write_all(script.as_bytes())
+                .map_err(io_error)?;
+            return Ok(0);
+        }
+        "suggest" | "pick" => {}
         _ => return Err((2, "Unknown command. Run 'heck --help'.".into())),
     }
 
-    let context = Context::default();
+    let mut context = Context::default();
     let mut from_stdin = false;
     let mut input = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--stdin" => from_stdin = true,
+            // Internal facts supplied by shell integration, not correction instructions.
+            "--program-known" => context.program_known = true,
+            "--program-shadowed" => context.program_shadowed = true,
             "--" => {
                 input = args.next();
                 if input.is_none() || args.next().is_some() {
@@ -93,11 +125,23 @@ fn run() -> CliResult {
         }
         Outcome::Unsupported(message) => Err((2, message.into())),
         Outcome::Suggestions(suggestions) => {
-            let mut output = io::stdout().lock();
-            for suggestion in suggestions {
-                writeln!(output, "{}", suggestion.command).map_err(io_error)?;
+            if action == "suggest" {
+                let mut output = io::stdout().lock();
+                for suggestion in suggestions {
+                    writeln!(output, "{}", suggestion.command).map_err(io_error)?;
+                }
+                Ok(0)
+            } else {
+                match picker::pick(&input, &suggestions).map_err(io_error)? {
+                    Some(index) => {
+                        io::stdout()
+                            .write_all(suggestions[index].command.as_bytes())
+                            .map_err(io_error)?;
+                        Ok(0)
+                    }
+                    None => Ok(130),
+                }
             }
-            Ok(0)
         }
     }
 }
