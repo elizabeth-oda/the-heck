@@ -82,3 +82,39 @@ pub(crate) fn tokenize(input: &str) -> Result<Vec<Token>, &'static str> {
     }
     Ok(tokens)
 }
+
+/// Decode a fixed shell word for a read-only metadata query. This deliberately
+/// rejects expansion; it never asks a shell to interpret user input.
+pub(crate) fn value(raw: &str) -> Option<String> {
+    let mut result = String::new();
+    let mut quote = None;
+    let mut chars = raw.chars();
+    while let Some(ch) = chars.next() {
+        if quote == Some('\'') {
+            if ch == '\'' {
+                quote = None;
+            } else {
+                result.push(ch);
+            }
+        } else if ch == '\\' {
+            let next = chars.next()?;
+            if quote == Some('"') && !matches!(next, '$' | '`' | '"' | '\\') {
+                result.push('\\');
+            }
+            result.push(next);
+        } else if quote == Some('"') {
+            match ch {
+                '"' => quote = None,
+                '$' | '`' => return None,
+                _ => result.push(ch),
+            }
+        } else {
+            match ch {
+                '\'' | '"' => quote = Some(ch),
+                '$' | '`' | '~' | '*' | '?' | '[' | ']' | '{' | '}' => return None,
+                _ => result.push(ch),
+            }
+        }
+    }
+    quote.is_none().then_some(result)
+}
