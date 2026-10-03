@@ -227,9 +227,9 @@ fn nested_tool_corrections_wait_for_submission() {
                 vec!["stack", "rebase", "--continue"],
             ),
             (
-                "uv --offline pip isntall 'requests[socks]>=2'",
-                "uv --offline pip install 'requests[socks]>=2'",
-                vec!["--offline", "pip", "install", "requests[socks]>=2"],
+                "uv --offline tool isntall 'ruff==0.14.0'",
+                "uv --offline tool install 'ruff==0.14.0'",
+                vec!["--offline", "tool", "install", "ruff==0.14.0"],
             ),
         ] {
             let mut session = Session::new(shell);

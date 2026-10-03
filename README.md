@@ -67,7 +67,7 @@ Examples of corrections:
 | `gh pr --repo owner/repo veiw 42` | `gh pr --repo owner/repo view 42` |
 | `gh stack subimt` | `gh stack submit` |
 | `gh stack rebsae --continue` | `gh stack rebase --continue` |
-| `uv pip isntall requests` | `uv pip install requests` |
+| `uv sycn --locked` | `uv sync --locked` |
 | `uv --project "my app" tool isntall ruff` | `uv --project "my app" tool install ruff` |
 
 Git options before the command include `-C`, `-c`, `--git-dir`, and
@@ -94,9 +94,10 @@ command will succeed, and it never runs a suggestion without your submission.
 
 ### uv
 
-Supports the documented top-level commands and `pip`, `tool`, `python`, `cache`, `auth`,
+Supports the documented top-level commands and `tool`, `python`, `cache`, `auth`,
 and `self` groups from [uv 0.9.25](https://github.com/astral-sh/uv/tree/0.9.25),
-including built-in aliases.
+including built-in aliases. `uv pip` coverage is limited to `install`, `uninstall`,
+and `list` (including its `ls` alias).
 
 Global options such as `--project`, `--directory`, `--offline`, and
 `-q`/`-v`/`-n` can appear before commands or between a group and its subcommand.

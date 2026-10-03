@@ -204,7 +204,7 @@ const GROUPS: &[(&str, &str)] = &[
     ("uv auth", "login logout token dir"),
     ("uv tool", "run install upgrade list uninstall update-shell dir"),
     ("uv python", "list install upgrade find pin dir uninstall update-shell"),
-    ("uv pip", "compile sync install uninstall freeze list show tree check"),
+    ("uv pip", "install uninstall list"),
     ("uv cache", "clean prune dir size"),
     ("uv self", "update version"),
 

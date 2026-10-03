@@ -344,12 +344,12 @@ fn uv_commands_and_global_options_preserve_arguments() {
             "  uv --project \"日本語 project\" --offline sync  ",
         ),
         (
-            "uv --directory='./my project' pip --offline isntall numpy",
-            "uv --directory='./my project' pip --offline install numpy",
+            "uv --directory='./my project' tool --offline isntall ruff",
+            "uv --directory='./my project' tool --offline install ruff",
         ),
         (
-            "uv pip --project \"$PROJECT\" isntall numpy",
-            "uv pip --project \"$PROJECT\" install numpy",
+            "uv tool --project \"$PROJECT\" isntall ruff",
+            "uv tool --project \"$PROJECT\" install ruff",
         ),
         ("uv -vvn tool isntall ruff", "uv -vvn tool install ruff"),
         (
@@ -381,7 +381,7 @@ fn uv_package_names_and_executed_commands_are_opaque() {
         "uv tool update --all",
         "uv python ls",
         "uv virtualenv sycn",
-        "uv run pip isntall requests",
+        "uv run uv sycn",
         "uv run --python 3.13 sycn --verbose",
         "uv tool run --from ruff rnu check .",
         "uvx",
@@ -391,7 +391,7 @@ fn uv_package_names_and_executed_commands_are_opaque() {
         "uv pip -- isntall requests",
         "uv --help sycn",
         "uv --version sycn",
-        "uv help pip isntall",
+        "uv help tool isntall",
     ] {
         assert_eq!(
             suggest(input, &Context::default()),

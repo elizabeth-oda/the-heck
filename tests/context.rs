@@ -174,7 +174,7 @@ fn uv_suggestions_do_not_invoke_uv_or_uvx() {
     }
     for (input, expected) in [
         ("vu sync", "uv sync\n"),
-        ("uv pip isntall numpy", "uv pip install numpy\n"),
+        ("uv tool isntall ruff", "uv tool install ruff\n"),
         (
             "uv --project \"$PROJECT\" sycn",
             "uv --project \"$PROJECT\" sync\n",
