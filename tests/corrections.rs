@@ -116,7 +116,6 @@ fn declines_syntax_it_cannot_preserve_confidently() {
         "git stats \\",
         "git stats # comment",
         "FOO=bar git stats",
-        "git -C somewhere stats",
         "cargo +nightly bulid",
         "'git' stats",
         "git \"stats\"",
@@ -154,4 +153,161 @@ fn oversized_input_is_declined() {
         suggest(&"a".repeat(65_537), &Context::default()),
         Outcome::Unsupported(_)
     ));
+}
+
+#[test]
+fn nested_commands_and_prefix_options_preserve_arguments() {
+    for (input, expected) in [
+        ("git remote ad origin URL", "git remote add origin URL"),
+        ("git remtoe add origin URL", "git remote add origin URL"),
+        ("git remote -v shwo origin", "git remote -v show origin"),
+        ("git stash psuh -m \"wip\"", "git stash push -m \"wip\""),
+        ("git worktree lsit", "git worktree list"),
+        (
+            "git submodule --quiet udpate --init",
+            "git submodule --quiet update --init",
+        ),
+        ("git bisect strat", "git bisect start"),
+        ("git sparse-checkout reaply", "git sparse-checkout reapply"),
+        ("git -C \"my repo\" stats", "git -C \"my repo\" status"),
+        (
+            "git -Cfirst -C second --no-pager stats",
+            "git -Cfirst -C second --no-pager status",
+        ),
+        (
+            "git --git-dir='my repo/.git' --work-tree \"my repo\" stats",
+            "git --git-dir='my repo/.git' --work-tree \"my repo\" status",
+        ),
+        (
+            "git -c core.pager=cat stats",
+            "git -c core.pager=cat status",
+        ),
+        (
+            "gh pr ceate --title \"Fix login\"",
+            "gh pr create --title \"Fix login\"",
+        ),
+        (
+            "gh pr --repo owner/repo veiw 42",
+            "gh pr --repo owner/repo view 42",
+        ),
+        ("gh -Rowner/repo pr veiw 42", "gh -Rowner/repo pr view 42"),
+        (
+            "gh --repo=owner/repo pr veiw 42",
+            "gh --repo=owner/repo pr view 42",
+        ),
+        (
+            "gh pr --repo \"$REPO\" veiw 42",
+            "gh pr --repo \"$REPO\" view 42",
+        ),
+        (
+            "gh repo autolink ceate KEY URL",
+            "gh repo autolink create KEY URL",
+        ),
+        (
+            "gh ext isntall owner/gh-example",
+            "gh ext install owner/gh-example",
+        ),
+        (
+            "gh cs ports forwad 8080:8080",
+            "gh cs ports forward 8080:8080",
+        ),
+        ("gh workflow veiw build.yml", "gh workflow view build.yml"),
+    ] {
+        assert_eq!(corrections(input)[0].command, expected, "{input}");
+    }
+}
+
+#[test]
+fn stack_support_requires_the_extension_and_preserves_its_arguments() {
+    let aliased = Context {
+        gh_stack: true,
+        gh_aliases: vec!["stack".into()],
+        ..Context::default()
+    };
+    assert_eq!(suggest("gh stakc view", &aliased), Outcome::NoMatch);
+
+    let context = Context {
+        gh_stack: true,
+        gh_extensions: vec!["stack".into()],
+        ..Context::default()
+    };
+    for (input, expected) in [
+        ("gh stakc view", "gh stack view"),
+        ("gh stack subimt --open", "gh stack submit --open"),
+        ("gh stack rebsae --continue", "gh stack rebase --continue"),
+        (
+            "gh stack ad -Am \"日本語 message\" feature/login",
+            "gh stack add -Am \"日本語 message\" feature/login",
+        ),
+        ("gh stack chekout 42", "gh stack checkout 42"),
+        ("gh stack botom", "gh stack bottom"),
+        ("gh stack unstakc --local", "gh stack unstack --local"),
+    ] {
+        let Outcome::Suggestions(suggestions) = suggest(input, &context) else {
+            panic!("{input}");
+        };
+        assert_eq!(suggestions[0].command, expected);
+    }
+    for input in [
+        "gh stack delete --local",
+        "gh stack add -Am \"subimt\"",
+        "gh stack checkout rebsae",
+    ] {
+        assert_eq!(suggest(input, &context), Outcome::NoMatch, "{input}");
+    }
+}
+
+#[test]
+fn command_arguments_and_configured_names_are_opaque() {
+    let context = Context {
+        git_aliases: vec!["stats".into()],
+        gh_aliases: vec!["rp".into()],
+        gh_extensions: vec!["stacks".into(), "stack".into()],
+        ..Context::default()
+    };
+    for input in [
+        "git stats --short",
+        "gh rp ceate",
+        "gh stacks subimt",
+        "gh stack subimt",
+        "git checkout psuh",
+        "git remote add psuh URL",
+        "git bisect good bda",
+        "git stash -m psuh",
+        "git stash -- psuh",
+        "git submodule -- psuh",
+        "gh pr view ceate",
+        "gh pr create --title ceate",
+        "gh api pr",
+        "gh pr -- ceate",
+        "gh pr ls",
+        "gh pr co 42",
+        "gh ext ls",
+        "gh issue new",
+        "gh repo deploy-key ls",
+        "git -C somewhere -- stats",
+    ] {
+        assert_eq!(suggest(input, &context), Outcome::NoMatch, "{input}");
+    }
+}
+
+#[test]
+fn uncertain_options_and_dynamic_git_context_are_declined() {
+    for input in [
+        "git --unknown value stats",
+        "git -C",
+        "git -C \"$REPO\" stats",
+        "git -C ~/repo stats",
+        "git -C repos/* stats",
+        "git -C {one,two} stats",
+        "git -c include.path=$FILE stats",
+        "gh pr --unknown value veiw",
+        "gh --repo",
+        "git remote --verbose=yes ad",
+    ] {
+        assert!(
+            matches!(suggest(input, &Context::default()), Outcome::Unsupported(_)),
+            "{input}"
+        );
+    }
 }

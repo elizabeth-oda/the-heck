@@ -118,8 +118,12 @@ fn run() -> CliResult {
     } else {
         input.unwrap_or_default()
     };
+    let metadata_error = the_heck::context::discover(&input, &mut context).err();
     match the_heck::suggest(&input, &context) {
         Outcome::NoMatch => {
+            if let Some(message) = metadata_error {
+                return Err((3, message.into()));
+            }
             eprintln!("heck: No correction found.");
             Ok(1)
         }

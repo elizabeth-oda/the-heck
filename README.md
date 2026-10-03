@@ -1,6 +1,6 @@
 # the-heck
 
-Fix a mistyped Git or Cargo command by typing **`heck`**:
+Fix a mistyped Git, GitHub CLI, or Cargo command by typing **`heck`**:
 
 ```text
 $ git stats --short
@@ -47,18 +47,67 @@ line from your shell configuration to disable it in future sessions.
 
 ## Scope
 
-- Corrects Git and Cargo program names and top-level subcommands.
+- Corrects Git, GitHub CLI (`gh`), and Cargo program names and commands.
+- Supports nested Git commands under `remote`, `stash`, `worktree`, `submodule`,
+  `bisect`, and `sparse-checkout`.
+- Supports gh command groups, including `pr`, `issue`, `repo`, `run`, `workflow`,
+  `release`, and deeper groups such as `repo autolink`.
+- Supports GitHub's `gh stack` extension when installed.
 - Preserves arguments, quotes, escapes, Unicode, and spacing.
 - Supports simple, single-line commands with literal program/subcommand words.
 - Runs in interactive Bash and Zsh on Unix, including WSL.
 
+Examples of corrections:
+
+| Mistyped command | Suggested command |
+| --- | --- |
+| `git remote ad origin URL` | `git remote add origin URL` |
+| `git stash psuh -m "wip"` | `git stash push -m "wip"` |
+| `git -C "my repo" stats` | `git -C "my repo" status` |
+| `gh pr --repo owner/repo veiw 42` | `gh pr --repo owner/repo view 42` |
+| `gh stack subimt` | `gh stack submit` |
+| `gh stack rebsae --continue` | `gh stack rebase --continue` |
+
+Git options before the command include `-C`, `-c`, `--git-dir`, and
+`--work-tree`; gh supports `-R`/`--repo` before supported subcommands.
+Heck preserves option spelling and values. Unknown options before a subcommand
+are declined because their values could otherwise be mistaken for commands.
+Git repository options must use fixed values, such as `-C "my repo"`;
+shell expansions such as `-C "$REPO"` are declined.
+
+Configured Git/gh aliases and installed gh extension names are preserved.
+Heck reads their names locally, without running alias bodies or extensions.
+Git alias lookup respects the selected repository and inline `-c` options.
+If metadata lookup fails, corrections for that tool are skipped.
+Cargo aliases and external `git-*` commands are not discovered.
+
 Pipelines, redirections, compound commands, command substitutions, unfinished
-quotes, and commands longer than 64 KiB are declined. Environment assignments,
-global options, and toolchain selectors before the subcommand are not supported.
-Project-specific Git/Cargo aliases and extension commands are not discovered.
+quotes, and commands longer than 64 KiB are declined. Environment assignments
+and Cargo toolchain selectors before the command are not supported.
+Branch names, paths, flag typos, and errors requiring repository state are
+outside the current scope.
 
 Heck uses a local command catalog. It does not validate whether the selected
 command will succeed, and it never runs a suggestion without your submission.
+
+### GitHub stacks
+
+Install [GitHub's stack extension](https://github.com/github/gh-stack) separately
+if you want to use it. It requires gh 2.0+ and Git 2.36+:
+
+```sh
+gh extension install github/gh-stack
+```
+
+Heck recognizes its setup, navigation, submission, synchronization, rebase,
+merge, and management commands, including the `delete` alias for `unstack`.
+It identifies the extension through `gh extension list`; another extension
+named `stack` is kept opaque. The optional `gs` wrapper is not recognized.
+
+The gh catalog follows version 2.86.0; the stack catalog follows
+[revision d4ab7ab](https://github.com/github/gh-stack/tree/d4ab7ab47e5b3e3708a27c8c42abcdf4bc321419).
+Older installations may support fewer commands. Suggestions do not contact
+GitHub or change stack state.
 
 ## Advanced CLI
 
@@ -74,7 +123,8 @@ one quoted command after `--` or exact command text through `--stdin`.
 Use `printf '%s'` to avoid adding a newline.
 
 The shell integration supplies facts about aliases, functions, and executable
-names; standalone invocations only know the supplied text and built-in catalog.
+names. Both shell and standalone invocations read local Git/gh aliases and gh
+extensions; standalone invocations cannot inspect aliases or functions in your shell.
 
 | Exit code | Meaning |
 | --- | --- |
@@ -97,5 +147,7 @@ zsh -n shell/heck.zsh
 ```
 
 On Unix, `cargo test` includes real terminal tests with temporary homes and
-recording stand-ins for Git and Cargo. To try the CLI without installing it,
+recording stand-ins for Git, gh, and Cargo. Metadata tests also use temporary Git
+repositories and a gh stand-in; they need no GitHub account or network access.
+To try the CLI without installing it,
 run `cargo build --locked` and prepend `$PWD/target/debug` to your `PATH`.

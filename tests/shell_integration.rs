@@ -216,3 +216,22 @@ fn refresh_preserves_user_replacements() {
         assert!(session.command("heck").contains("KEPT_FUNCTION\r\n"));
     }
 }
+
+#[test]
+fn stack_correction_waits_for_submission() {
+    for shell in SHELLS {
+        let mut session = Session::new(shell);
+        session.command("gh stack rebsae --continue");
+        let baseline = session.runs();
+        session.send("heck\r");
+        session.picker();
+        session.select_for_editing();
+        assert_eq!(session.capture(), "gh stack rebase --continue");
+        assert_eq!(session.runs(), baseline);
+        session.send("\r");
+        session.prompt();
+        let runs = session.runs();
+        assert_eq!(runs.len(), baseline.len() + 1);
+        assert_eq!(runs.last().unwrap(), &["stack", "rebase", "--continue"]);
+    }
+}

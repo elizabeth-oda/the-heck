@@ -130,13 +130,20 @@ impl Session {
         // A NUL-delimited argument log, prefixed by argc for each invocation,
         // preserves empty arguments and newlines without another test runtime.
         let recorder = r#"#!/bin/sh
+# Metadata queries must not appear as command submissions in the argument log.
+case "$*" in
+    *"config --null --name-only --get-regexp"*) exit 1 ;;
+    "alias list") printf 'co: pr checkout\n'; exit 0 ;;
+    "extension list") printf 'gh stack\tgithub/gh-stack\tv1\n'; exit 0 ;;
+esac
 {
     printf '%s\0' "$#"
     for arg do printf '%s\0' "$arg"; done
 } >> "$HOME/runs"
 case "$1" in stat|stats|bulid) exit 1;; esac
 "#;
-        for name in ["git", "cargo"] {
+
+        for name in ["git", "cargo", "gh"] {
             executable(&bin.join(name), recorder);
         }
         let mut rc = format!(

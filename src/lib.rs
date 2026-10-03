@@ -2,7 +2,10 @@
 //!
 //! Only simple commands in the shared Bash/Zsh syntax subset are supported.
 //! Edits use UTF-8 byte offsets into the original input.
+mod catalog;
+pub mod context;
 mod lexer;
+mod syntax;
 
 use std::ops::Range;
 
@@ -20,13 +23,21 @@ pub struct Suggestion {
     pub distance: usize,
 }
 
-/// Facts supplied by the active shell. No commands are run by the engine.
+/// Facts supplied by the active shell and local metadata lookup.
+/// The suggestion engine itself performs no I/O.
 #[derive(Debug, Default)]
 pub struct Context {
-    /// The original program already resolves to an executable or shell builtin.
+    /// The original program resolves to an executable or shell builtin.
     pub program_known: bool,
-    /// The original program is an alias or function; its grammar is unknown.
+    /// The original program is a shell alias or function with unknown grammar.
     pub program_shadowed: bool,
+    pub git_aliases: Vec<String>,
+    pub gh_aliases: Vec<String>,
+    pub gh_extensions: Vec<String>,
+    /// The installed "stack" extension is github/gh-stack.
+    pub gh_stack: bool,
+    /// Tools whose local metadata could not be read.
+    pub unavailable_programs: Vec<String>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -36,209 +47,6 @@ pub enum Outcome {
     Unsupported(&'static str),
 }
 
-// These are command words, never command lines containing flags or arguments.
-const GIT: &[&str] = &[
-    "add",
-    "am",
-    "annotate",
-    "apply",
-    "archive",
-    "bisect",
-    "blame",
-    "branch",
-    "bugreport",
-    "bundle",
-    "cat-file",
-    "check-attr",
-    "check-ignore",
-    "check-mailmap",
-    "check-ref-format",
-    "checkout",
-    "checkout-index",
-    "cherry",
-    "cherry-pick",
-    "clean",
-    "clone",
-    "column",
-    "commit",
-    "commit-graph",
-    "commit-tree",
-    "config",
-    "count-objects",
-    "credential",
-    "credential-cache",
-    "credential-store",
-    "daemon",
-    "describe",
-    "diagnose",
-    "diff",
-    "diff-files",
-    "diff-index",
-    "diff-tree",
-    "difftool",
-    "fast-export",
-    "fast-import",
-    "fetch",
-    "fetch-pack",
-    "filter-branch",
-    "fmt-merge-msg",
-    "for-each-ref",
-    "for-each-repo",
-    "format-patch",
-    "fsck",
-    "fsck-objects",
-    "gc",
-    "get-tar-commit-id",
-    "grep",
-    "hash-object",
-    "help",
-    "hook",
-    "http-backend",
-    "http-fetch",
-    "http-push",
-    "imap-send",
-    "index-pack",
-    "init",
-    "init-db",
-    "instaweb",
-    "interpret-trailers",
-    "log",
-    "ls-files",
-    "ls-remote",
-    "ls-tree",
-    "mailinfo",
-    "mailsplit",
-    "maintenance",
-    "merge",
-    "merge-base",
-    "merge-file",
-    "merge-index",
-    "merge-tree",
-    "mergetool",
-    "mktag",
-    "mktree",
-    "multi-pack-index",
-    "mv",
-    "name-rev",
-    "notes",
-    "pack-objects",
-    "pack-redundant",
-    "pack-refs",
-    "patch-id",
-    "pickaxe",
-    "prune",
-    "prune-packed",
-    "pull",
-    "push",
-    "quiltimport",
-    "range-diff",
-    "read-tree",
-    "rebase",
-    "receive-pack",
-    "reflog",
-    "remote",
-    "repack",
-    "replace",
-    "request-pull",
-    "rerere",
-    "reset",
-    "restore",
-    "rev-list",
-    "rev-parse",
-    "revert",
-    "rm",
-    "send-pack",
-    "shell",
-    "shortlog",
-    "show",
-    "show-branch",
-    "show-index",
-    "show-ref",
-    "sparse-checkout",
-    "stage",
-    "stash",
-    "status",
-    "stripspace",
-    "submodule",
-    "subtree",
-    "switch",
-    "symbolic-ref",
-    "tag",
-    "unpack-file",
-    "unpack-objects",
-    "update-index",
-    "update-ref",
-    "update-server-info",
-    "upload-archive",
-    "upload-pack",
-    "var",
-    "verify-commit",
-    "verify-pack",
-    "verify-tag",
-    "version",
-    "whatchanged",
-    "worktree",
-    "write-tree",
-];
-const CARGO: &[&str] = &[
-    "add",
-    "b",
-    "bench",
-    "build",
-    "c",
-    "check",
-    "clean",
-    "clippy",
-    "config",
-    "d",
-    "doc",
-    "fetch",
-    "fix",
-    "fmt",
-    "generate-lockfile",
-    "git-checkout",
-    "help",
-    "info",
-    "init",
-    "install",
-    "locate-project",
-    "login",
-    "logout",
-    "metadata",
-    "miri",
-    "new",
-    "owner",
-    "package",
-    "pkgid",
-    "publish",
-    "r",
-    "read-manifest",
-    "remove",
-    "report",
-    "rm",
-    "run",
-    "rustc",
-    "rustdoc",
-    "search",
-    "t",
-    "test",
-    "tree",
-    "uninstall",
-    "update",
-    "vendor",
-    "verify-project",
-    "version",
-    "yank",
-];
-
-fn commands(program: &str) -> Option<&'static [&'static str]> {
-    match program {
-        "git" => Some(GIT),
-        "cargo" => Some(CARGO),
-        _ => None,
-    }
-}
-
 /// Return ranked, complete suggestions. Everything outside the edited words is
 /// copied verbatim. Unknown syntax is declined rather than interpreted.
 pub fn suggest(input: &str, context: &Context) -> Outcome {
@@ -246,87 +54,176 @@ pub fn suggest(input: &str, context: &Context) -> Outcome {
         Ok(tokens) => tokens,
         Err(message) => return Outcome::Unsupported(message),
     };
-    let Some(program_token) = tokens.first() else {
-        return Outcome::NoMatch;
+    let programs = match programs(input, &tokens, context) {
+        Ok(programs) => programs,
+        Err(message) => return Outcome::Unsupported(message),
+    };
+
+    let mut search = Search {
+        input,
+        tokens: &tokens,
+        context,
+        results: Vec::new(),
+    };
+    let mut unsupported = None;
+    for (fixed, distance) in programs {
+        if context
+            .unavailable_programs
+            .iter()
+            .any(|name| name == fixed)
+        {
+            continue;
+        }
+        let mut route = Route {
+            path: fixed.to_owned(),
+            next: 1,
+            edits: Vec::new(),
+            reasons: Vec::new(),
+            distance,
+        };
+        if distance > 0 {
+            let program_token = &tokens[0];
+            let program = &input[program_token.range.clone()];
+            route.edits.push(TextEdit {
+                range: program_token.range.clone(),
+                replacement: fixed.to_owned(),
+            });
+            route.reasons.push(format!("Program: {program} → {fixed}"));
+        }
+        if let Err(message) = search.walk(route) {
+            unsupported = Some(message);
+        }
+    }
+    search.results.sort_by(|a, b| {
+        (a.distance, a.edits.len(), &a.command).cmp(&(b.distance, b.edits.len(), &b.command))
+    });
+    search.results.truncate(8);
+    if search.results.is_empty() {
+        unsupported.map_or(Outcome::NoMatch, Outcome::Unsupported)
+    } else {
+        Outcome::Suggestions(search.results)
+    }
+}
+
+fn programs<'a>(
+    input: &'a str,
+    tokens: &[lexer::Token],
+    context: &Context,
+) -> Result<Vec<(&'a str, usize)>, &'static str> {
+    let Some(token) = tokens.first() else {
+        return Ok(Vec::new());
     };
     if context.program_shadowed {
-        return Outcome::NoMatch;
+        return Ok(Vec::new());
     }
-    if !program_token.literal {
-        return Outcome::Unsupported("Use a literal, unquoted program name.");
+    if !token.literal {
+        return Err("Use a literal, unquoted program name.");
     }
-    let program = &input[program_token.range.clone()];
+    let program = &input[token.range.clone()];
     if program.contains('=') {
-        return Outcome::Unsupported(
-            "Environment assignments before commands are not supported yet.",
-        );
+        return Err("Environment assignments before commands are not supported yet.");
     }
-    if context.program_known && commands(program).is_none() {
-        return Outcome::NoMatch;
+    if context.program_known && !catalog::PROGRAMS.contains(&program) {
+        return Ok(Vec::new());
     }
-    let programs = matches(program, &["cargo", "git"]);
-    if programs.is_empty() {
-        return Outcome::NoMatch;
-    }
-    if let Some(token) = tokens.get(1) {
-        if !token.literal {
-            return Outcome::Unsupported("Use a literal, unquoted subcommand.");
-        }
-        if input[token.range.clone()].starts_with(['-', '+']) {
-            return Outcome::Unsupported(
-                "Options or toolchain selectors before the subcommand are not supported yet.",
-            );
+    Ok(matches(program, catalog::PROGRAMS))
+}
+
+#[derive(Clone)]
+struct Route {
+    path: String,
+    next: usize,
+    edits: Vec<TextEdit>,
+    reasons: Vec<String>,
+    distance: usize,
+}
+
+struct Search<'a> {
+    input: &'a str,
+    tokens: &'a [lexer::Token],
+    context: &'a Context,
+    results: Vec<Suggestion>,
+}
+
+impl Search<'_> {
+    fn finish(&mut self, route: Route) {
+        if !route.edits.is_empty() {
+            self.results.push(candidate(
+                self.input,
+                route.edits,
+                route.reasons,
+                route.distance,
+            ));
         }
     }
 
-    let mut results = Vec::new();
-    for (fixed_program, program_distance) in programs {
-        let subcommands = match tokens.get(1) {
-            Some(token) => matches(
-                &input[token.range.clone()],
-                commands(fixed_program).unwrap(),
-            ),
-            None => vec![("", 0)],
+    fn walk(&mut self, route: Route) -> Result<(), &'static str> {
+        let mut children = catalog::children(&route.path);
+        if children.is_empty() {
+            self.finish(route);
+            return Ok(());
+        }
+        let position = syntax::command(self.input, self.tokens, route.next, &route.path)?;
+        let Some(index) = position.index else {
+            self.finish(route);
+            return Ok(());
         };
-        for (fixed_subcommand, subcommand_distance) in subcommands {
-            let mut edits = Vec::new();
-            let mut reasons = Vec::new();
-            if program_distance > 0 {
-                edits.push(TextEdit {
-                    range: program_token.range.clone(),
-                    replacement: fixed_program.to_owned(),
-                });
-                reasons.push(format!("Program: {program} → {fixed_program}"));
+        let token = &self.tokens[index];
+        if !token.literal {
+            return Err("Use a literal, unquoted subcommand.");
+        }
+        let word = &self.input[token.range.clone()];
+        let stack_available =
+            self.context.gh_stack && !self.context.gh_aliases.iter().any(|name| name == "stack");
+        let protected = match route.path.as_str() {
+            "git" => self.context.git_aliases.iter().any(|alias| alias == word),
+            "gh" => {
+                self.context.gh_aliases.iter().any(|alias| alias == word)
+                    || self
+                        .context
+                        .gh_extensions
+                        .iter()
+                        .any(|ext| ext == word && !(ext == "stack" && stack_available))
             }
-            if subcommand_distance > 0 {
-                let token = &tokens[1];
-                let subcommand = &input[token.range.clone()];
-                edits.push(TextEdit {
+            _ => false,
+        };
+        if protected {
+            self.finish(route);
+            return Ok(());
+        }
+        if route.path == "gh" && !stack_available {
+            // Keep an explicit stack invocation opaque even when absent. It
+            // must not be "repaired" into some other built-in command.
+            if word == "stack" {
+                return Ok(());
+            }
+            children.retain(|word| *word != "stack");
+        }
+        let canonical = catalog::canonical(&route.path, word);
+        let alternatives = if canonical != word {
+            vec![(canonical, 0)]
+        } else {
+            matches(word, &children)
+        };
+        let mut unsupported = None;
+        for (fixed, distance) in alternatives {
+            let mut next = route.clone();
+            if distance > 0 {
+                next.edits.push(TextEdit {
                     range: token.range.clone(),
-                    replacement: fixed_subcommand.to_owned(),
+                    replacement: fixed.to_owned(),
                 });
-                reasons.push(format!(
-                    "{fixed_program} subcommand: {subcommand} → {fixed_subcommand}"
-                ));
+                next.reasons
+                    .push(format!("{} subcommand: {word} → {fixed}", route.path));
             }
-            if !edits.is_empty() {
-                results.push(candidate(
-                    input,
-                    edits,
-                    reasons,
-                    program_distance + subcommand_distance,
-                ));
+            next.path = format!("{} {fixed}", route.path);
+            next.next = index + 1;
+            next.distance += distance;
+            if let Err(message) = self.walk(next) {
+                unsupported = Some(message);
             }
         }
-    }
-    results.sort_by(|a, b| {
-        (a.distance, a.edits.len(), &a.command).cmp(&(b.distance, b.edits.len(), &b.command))
-    });
-    results.truncate(8);
-    if results.is_empty() {
-        Outcome::NoMatch
-    } else {
-        Outcome::Suggestions(results)
+        unsupported.map_or(Ok(()), Err)
     }
 }
 
