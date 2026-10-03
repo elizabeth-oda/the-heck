@@ -1,6 +1,6 @@
 # the-heck
 
-Fix a mistyped Git, GitHub CLI, or Cargo command by typing **`heck`**:
+Fix a mistyped Git, GitHub CLI, Cargo, or uv command by typing **`heck`**:
 
 ```text
 $ git stats --short
@@ -47,7 +47,7 @@ line from your shell configuration to disable it in future sessions.
 
 ## Scope
 
-- Corrects Git, GitHub CLI (`gh`), and Cargo program names and commands.
+- Corrects Git, GitHub CLI (`gh`), Cargo, and uv program names and commands.
 - Supports nested Git commands under `remote`, `stash`, `worktree`, `submodule`,
   `bisect`, and `sparse-checkout`.
 - Supports gh command groups, including `pr`, `issue`, `repo`, `run`, `workflow`,
@@ -67,6 +67,8 @@ Examples of corrections:
 | `gh pr --repo owner/repo veiw 42` | `gh pr --repo owner/repo view 42` |
 | `gh stack subimt` | `gh stack submit` |
 | `gh stack rebsae --continue` | `gh stack rebase --continue` |
+| `uv pip isntall requests` | `uv pip install requests` |
+| `uv --project "my app" tool isntall ruff` | `uv --project "my app" tool install ruff` |
 
 Git options before the command include `-C`, `-c`, `--git-dir`, and
 `--work-tree`; gh supports `-R`/`--repo` before supported subcommands.
@@ -89,6 +91,18 @@ outside the current scope.
 
 Heck uses a local command catalog. It does not validate whether the selected
 command will succeed, and it never runs a suggestion without your submission.
+
+### uv
+
+Supports the documented top-level commands and `pip`, `tool`, `python`, `cache`, `auth`,
+and `self` groups from [uv 0.9.25](https://github.com/astral-sh/uv/tree/0.9.25),
+including built-in aliases.
+
+Global options such as `--project`, `--directory`, `--offline`, and
+`-q`/`-v`/`-n` can appear before commands or between a group and its subcommand.
+Option values, package names, and paths are preserved. Commands passed to
+`uv run` and `uv tool run`, and all `uvx` arguments, are left untouched.
+Suggestions use the local catalog without invoking uv.
 
 ### GitHub stacks
 
@@ -147,7 +161,7 @@ zsh -n shell/heck.zsh
 ```
 
 On Unix, `cargo test` includes real terminal tests with temporary homes and
-recording stand-ins for Git, gh, and Cargo. Metadata tests also use temporary Git
+recording stand-ins for Git, gh, Cargo, and uv. Metadata tests also use temporary Git
 repositories and a gh stand-in; they need no GitHub account or network access.
 To try the CLI without installing it,
 run `cargo build --locked` and prepend `$PWD/target/debug` to your `PATH`.

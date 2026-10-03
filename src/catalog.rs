@@ -193,12 +193,21 @@ const CARGO: &[&str] = &[
     "yank",
 ];
 
-pub(crate) const PROGRAMS: &[&str] = &["cargo", "gh", "git"];
+pub(crate) const PROGRAMS: &[&str] = &["cargo", "gh", "git", "uv"];
 
 // Git 2.43 help and gh 2.86.0 `gh help reference`.
 // Stack: github/gh-stack README at d4ab7ab47e5b3e3708a27c8c42abcdf4bc321419.
+// uv 0.9.25: https://github.com/astral-sh/uv/blob/0.9.25/crates/uv-cli/src/lib.rs
 // Each row contains command words, never options or argument values.
 const GROUPS: &[(&str, &str)] = &[
+    ("uv", "auth run init add remove version sync lock export tree format tool python pip venv build publish cache self help"),
+    ("uv auth", "login logout token dir"),
+    ("uv tool", "run install upgrade list uninstall update-shell dir"),
+    ("uv python", "list install upgrade find pin dir uninstall update-shell"),
+    ("uv pip", "compile sync install uninstall freeze list show tree check"),
+    ("uv cache", "clean prune dir size"),
+    ("uv self", "update version"),
+
     ("git remote", "add rename remove rm set-head set-branches get-url set-url show prune update"),
     ("git stash", "list show drop pop apply branch push save clear create store"),
     ("git worktree", "add list lock move prune remove repair unlock"),
@@ -254,6 +263,11 @@ pub(crate) fn children(path: &str) -> Vec<&'static str> {
 /// Built-in aliases have known grammar; configured aliases remain opaque.
 pub(crate) fn canonical<'a>(path: &str, word: &'a str) -> &'a str {
     match (path, word) {
+        ("uv", "virtualenv" | "v") => "venv",
+        ("uv pip" | "uv tool" | "uv python", "ls") => "list",
+        ("uv tool", "update") => "upgrade",
+        ("uv tool" | "uv python", "ensurepath") => "update-shell",
+
         ("gh", "agent" | "agents" | "agent-tasks") => "agent-task",
         ("gh", "at") => "attestation",
         ("gh", "cs") => "codespace",

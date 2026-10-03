@@ -218,20 +218,33 @@ fn refresh_preserves_user_replacements() {
 }
 
 #[test]
-fn stack_correction_waits_for_submission() {
+fn nested_tool_corrections_wait_for_submission() {
     for shell in SHELLS {
-        let mut session = Session::new(shell);
-        session.command("gh stack rebsae --continue");
-        let baseline = session.runs();
-        session.send("heck\r");
-        session.picker();
-        session.select_for_editing();
-        assert_eq!(session.capture(), "gh stack rebase --continue");
-        assert_eq!(session.runs(), baseline);
-        session.send("\r");
-        session.prompt();
-        let runs = session.runs();
-        assert_eq!(runs.len(), baseline.len() + 1);
-        assert_eq!(runs.last().unwrap(), &["stack", "rebase", "--continue"]);
+        for (input, expected, args) in [
+            (
+                "gh stack rebsae --continue",
+                "gh stack rebase --continue",
+                vec!["stack", "rebase", "--continue"],
+            ),
+            (
+                "uv --offline pip isntall 'requests[socks]>=2'",
+                "uv --offline pip install 'requests[socks]>=2'",
+                vec!["--offline", "pip", "install", "requests[socks]>=2"],
+            ),
+        ] {
+            let mut session = Session::new(shell);
+            session.command(input);
+            let baseline = session.runs();
+            session.send("heck\r");
+            session.picker();
+            session.select_for_editing();
+            assert_eq!(session.capture(), expected);
+            assert_eq!(session.runs(), baseline);
+            session.send("\r");
+            session.prompt();
+            let runs = session.runs();
+            assert_eq!(runs.len(), baseline.len() + 1);
+            assert_eq!(runs.last().unwrap(), &args);
+        }
     }
 }

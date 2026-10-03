@@ -13,13 +13,17 @@ pub(crate) fn command(
     mut index: usize,
     path: &str,
 ) -> Result<Position, &'static str> {
+    let uv = path == "uv" || path.starts_with("uv ");
     let mut git_args = Vec::new();
     let index = loop {
         let Some(token) = tokens.get(index) else {
             break None;
         };
         let raw = &input[token.range.clone()];
-        if matches!(raw, "--" | "-h" | "--help" | "--version") {
+        if matches!(raw, "--" | "-h" | "--help")
+            || (raw == "--version" && !path.starts_with("uv "))
+            || (path == "uv" && raw == "-V")
+        {
             break None;
         }
         if !raw.starts_with('-') {
@@ -64,7 +68,18 @@ pub(crate) fn command(
                 | "gh variable"
                 | "gh ruleset"
         ) && matches!(name, "-R" | "--repo");
-        if git_value || gh_repo {
+        let uv_value = uv
+            && matches!(
+                name,
+                "--cache-dir"
+                    | "--color"
+                    | "--allow-insecure-host"
+                    | "--trusted-host"
+                    | "--directory"
+                    | "--project"
+                    | "--config-file"
+            );
+        if git_value || gh_repo || uv_value {
             let value = match inline {
                 Some(value) => value,
                 None => {
@@ -99,6 +114,26 @@ pub(crate) fn command(
                 ),
                 "git remote" => matches!(name, "-v" | "--verbose" | "--no-verbose"),
                 "git submodule" => matches!(name, "-q" | "--quiet" | "--cached"),
+                _ if uv => {
+                    matches!(
+                        name,
+                        "--no-cache"
+                            | "--quiet"
+                            | "--verbose"
+                            | "--managed-python"
+                            | "--no-managed-python"
+                            | "--no-python-downloads"
+                            | "--native-tls"
+                            | "--offline"
+                            | "--no-progress"
+                            | "--no-config"
+                            | "--preview"
+                            | "--no-preview"
+                    ) || name.strip_prefix('-').is_some_and(|shorts| {
+                        !shorts.is_empty()
+                            && shorts.chars().all(|flag| matches!(flag, 'n' | 'q' | 'v'))
+                    })
+                }
                 _ => false,
             };
             if !flag || inline.is_some() {

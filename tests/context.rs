@@ -165,3 +165,29 @@ fn unavailable_gh_does_not_block_git_program_typos() {
     assert!(text.starts_with("git status\n"), "{text}");
     assert!(!text.lines().any(|line| line.starts_with("gh ")));
 }
+
+#[test]
+fn uv_suggestions_do_not_invoke_uv_or_uvx() {
+    let fixture = Fixture::new();
+    for program in ["uv", "uvx"] {
+        fixture.stub(program, "#!/bin/sh\ntouch \"$HOME/marker\"\nexit 99\n");
+    }
+    for (input, expected) in [
+        ("vu sync", "uv sync\n"),
+        ("uv pip isntall numpy", "uv pip install numpy\n"),
+        (
+            "uv --project \"$PROJECT\" sycn",
+            "uv --project \"$PROJECT\" sync\n",
+        ),
+    ] {
+        let output = fixture.suggest(input);
+        assert!(output.status.success(), "{input}: {output:?}");
+        assert_eq!(String::from_utf8(output.stdout).unwrap(), expected);
+    }
+    for input in ["uv run sycn", "uv tool run rnu", "uvx rnu"] {
+        let output = fixture.suggest(input);
+        assert_eq!(output.status.code(), Some(1), "{input}: {output:?}");
+        assert!(output.stdout.is_empty());
+    }
+    assert!(!fixture.root.path().join("marker").exists());
+}
